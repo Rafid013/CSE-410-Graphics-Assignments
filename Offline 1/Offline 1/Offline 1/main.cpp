@@ -1,15 +1,17 @@
 #include<stdio.h>
 #include<stdlib.h>
 #include<math.h>
-
+#include<iostream>
+using namespace std;
 #include <windows.h>
 #include <glut.h>
 
 const double pi = (2 * acos(0.0));
-const double rotate_angle = pi / 60;
+const double rotate_angle = pi / 90;
 const double rotate_limit = pi / 4;
 const double translation_speed = 3;
-
+const double wall_distance = -1000;
+const double wall_side = 600;
 
 double barrel_angle_y = 0;
 double barrel_angle_z = 0;
@@ -21,7 +23,7 @@ double cameraHeight;
 double cameraAngle;
 int drawgrid;
 int drawaxes;
-const double axis_len = 1000;
+const double axis_len = 1500;
 
 struct point
 {
@@ -35,6 +37,13 @@ struct vector {
 
 point cameraPosition;
 vector l, u, r;
+
+point gun_point;
+vector gun_l, gun_u, gun_r;
+vector main_gun_l, main_gun_u, main_gun_r;
+
+point points_on_wall[100];
+int points_on_wall_size = 0;
 
 void drawAxes()
 {
@@ -105,15 +114,15 @@ void move_camera_left() {
 }
 
 void move_camera_up() {
-	cameraPosition.x += u.x;
-	cameraPosition.y += u.y;
-	cameraPosition.z += u.z;
+	cameraPosition.x += (translation_speed*u.x);
+	cameraPosition.y += (translation_speed*u.y);
+	cameraPosition.z += (translation_speed*u.z);
 }
 
 void move_camera_down() {
-	cameraPosition.x -= u.x;
-	cameraPosition.y -= u.y;
-	cameraPosition.z -= u.z;
+	cameraPosition.x -= (translation_speed*u.x);
+	cameraPosition.y -= (translation_speed*u.y);
+	cameraPosition.z -= (translation_speed*u.z);
 }
 
 
@@ -319,6 +328,145 @@ void drawCylinder(double radius, int segments, double length)
 	}
 }
 
+void rotate_full_gun_left() {
+	double cos_theta = cos(rotate_angle);
+	double sin_theta = sin(rotate_angle);
+
+	gun_l.x = gun_l.x*cos_theta - gun_r.x*sin_theta;
+	gun_l.y = gun_l.y*cos_theta - gun_r.y*sin_theta;
+	gun_l.z = gun_l.z*cos_theta - gun_r.z*sin_theta;
+
+	gun_r.x = gun_l.y*gun_u.z - gun_l.z*gun_u.y;
+	gun_r.y = gun_l.z*gun_u.x - gun_l.x*gun_u.z;
+	gun_r.z = gun_l.x*gun_u.y - gun_l.y*gun_u.x;
+
+	main_gun_l.x = main_gun_l.x*cos_theta - main_gun_r.x*sin_theta;
+	main_gun_l.y = main_gun_l.y*cos_theta - main_gun_r.y*sin_theta;
+	main_gun_l.z = main_gun_l.z*cos_theta - main_gun_r.z*sin_theta;
+
+	main_gun_r.x = main_gun_l.y*main_gun_u.z - main_gun_l.z*main_gun_u.y;
+	main_gun_r.y = main_gun_l.z*main_gun_u.x - main_gun_l.x*main_gun_u.z;
+	main_gun_r.z = main_gun_l.x*main_gun_u.y - main_gun_l.y*main_gun_u.x;
+}
+
+void rotate_full_gun_right() {
+	double cos_theta = cos(-rotate_angle);
+	double sin_theta = sin(-rotate_angle);
+
+	gun_l.x = gun_l.x*cos_theta - gun_r.x*sin_theta;
+	gun_l.y = gun_l.y*cos_theta - gun_r.y*sin_theta;
+	gun_l.z = gun_l.z*cos_theta - gun_r.z*sin_theta;
+
+	gun_r.x = gun_l.y*gun_u.z - gun_l.z*gun_u.y;
+	gun_r.y = gun_l.z*gun_u.x - gun_l.x*gun_u.z;
+	gun_r.z = gun_l.x*gun_u.y - gun_l.y*gun_u.x;
+
+	main_gun_l.x = main_gun_l.x*cos_theta - main_gun_r.x*sin_theta;
+	main_gun_l.y = main_gun_l.y*cos_theta - main_gun_r.y*sin_theta;
+	main_gun_l.z = main_gun_l.z*cos_theta - main_gun_r.z*sin_theta;
+
+	main_gun_r.x = main_gun_l.y*main_gun_u.z - main_gun_l.z*main_gun_u.y;
+	main_gun_r.y = main_gun_l.z*main_gun_u.x - main_gun_l.x*main_gun_u.z;
+	main_gun_r.z = main_gun_l.x*main_gun_u.y - main_gun_l.y*main_gun_u.x;
+}
+
+void rotate_full_gun_up() {
+	double cos_theta = cos(rotate_angle);
+	double sin_theta = sin(rotate_angle);
+
+	gun_l.x = gun_l.x*cos_theta + gun_u.x*sin_theta;
+	gun_l.y = gun_l.y*cos_theta + gun_u.y*sin_theta;
+	gun_l.z = gun_l.z*cos_theta + gun_u.z*sin_theta;
+
+	gun_u.x = gun_r.y*gun_l.z - gun_r.z*gun_l.y;
+	gun_u.y = gun_r.z*gun_l.x - gun_r.x*gun_l.z;
+	gun_u.z = gun_r.x*gun_l.y - gun_r.y*gun_l.x;
+
+	main_gun_l.x = main_gun_l.x*cos_theta + main_gun_u.x*sin_theta;
+	main_gun_l.y = main_gun_l.y*cos_theta + main_gun_u.y*sin_theta;
+	main_gun_l.z = main_gun_l.z*cos_theta + main_gun_u.z*sin_theta;
+
+	main_gun_u.x = main_gun_r.y*main_gun_l.z - main_gun_r.z*main_gun_l.y;
+	main_gun_u.y = main_gun_r.z*main_gun_l.x - main_gun_r.x*main_gun_l.z;
+	main_gun_u.z = main_gun_r.x*main_gun_l.y - main_gun_r.y*main_gun_l.x;
+}
+
+void rotate_full_gun_down() {
+	double cos_theta = cos(-rotate_angle);
+	double sin_theta = sin(-rotate_angle);
+
+	gun_l.x = gun_l.x*cos_theta + gun_u.x*sin_theta;
+	gun_l.y = gun_l.y*cos_theta + gun_u.y*sin_theta;
+	gun_l.z = gun_l.z*cos_theta + gun_u.z*sin_theta;
+
+	gun_u.x = gun_r.y*gun_l.z - gun_r.z*gun_l.y;
+	gun_u.y = gun_r.z*gun_l.x - gun_r.x*gun_l.z;
+	gun_u.z = gun_r.x*gun_l.y - gun_r.y*gun_l.x;
+
+	main_gun_l.x = main_gun_l.x*cos_theta + main_gun_u.x*sin_theta;
+	main_gun_l.y = main_gun_l.y*cos_theta + main_gun_u.y*sin_theta;
+	main_gun_l.z = main_gun_l.z*cos_theta + main_gun_u.z*sin_theta;
+
+	main_gun_u.x = main_gun_r.y*main_gun_l.z - main_gun_r.z*main_gun_l.y;
+	main_gun_u.y = main_gun_r.z*main_gun_l.x - main_gun_r.x*main_gun_l.z;
+	main_gun_u.z = main_gun_r.x*main_gun_l.y - main_gun_r.y*main_gun_l.x;
+}
+
+void rotate_main_gun_up() {
+	double cos_theta = cos(rotate_angle);
+	double sin_theta = sin(rotate_angle);
+
+	main_gun_l.x = main_gun_l.x*cos_theta + main_gun_u.x*sin_theta;
+	main_gun_l.y = main_gun_l.y*cos_theta + main_gun_u.y*sin_theta;
+	main_gun_l.z = main_gun_l.z*cos_theta + main_gun_u.z*sin_theta;
+
+	main_gun_u.x = main_gun_r.y*main_gun_l.z - main_gun_r.z*main_gun_l.y;
+	main_gun_u.y = main_gun_r.z*main_gun_l.x - main_gun_r.x*main_gun_l.z;
+	main_gun_u.z = main_gun_r.x*main_gun_l.y - main_gun_r.y*main_gun_l.x;
+}
+
+void rotate_main_gun_down() {
+	double cos_theta = cos(-rotate_angle);
+	double sin_theta = sin(-rotate_angle);
+
+	main_gun_l.x = main_gun_l.x*cos_theta + main_gun_u.x*sin_theta;
+	main_gun_l.y = main_gun_l.y*cos_theta + main_gun_u.y*sin_theta;
+	main_gun_l.z = main_gun_l.z*cos_theta + main_gun_u.z*sin_theta;
+
+	main_gun_u.x = main_gun_r.y*main_gun_l.z - main_gun_r.z*main_gun_l.y;
+	main_gun_u.y = main_gun_r.z*main_gun_l.x - main_gun_r.x*main_gun_l.z;
+	main_gun_u.z = main_gun_r.x*main_gun_l.y - main_gun_r.y*main_gun_l.x;
+}
+
+void modify_gun_point() {
+	double temp = gun_point.x*gun_l.x + gun_point.y*gun_l.y + gun_point.z*gun_l.z;
+	gun_point.x = temp * gun_l.x;
+	gun_point.y = temp * gun_l.y;
+	gun_point.z = temp * gun_l.z;
+}
+
+void draw_gun_shot() {
+	for (int i = 0; i < points_on_wall_size; ++i) {
+		glColor3f(1, 0, 0);
+		glBegin(GL_QUADS);
+		{
+			glVertex3f(points_on_wall[i].x + 10, wall_distance + 50, points_on_wall[i].z + 10);
+			glVertex3f(points_on_wall[i].x - 10, wall_distance + 50, points_on_wall[i].z + 10);
+			glVertex3f(points_on_wall[i].x - 10, wall_distance + 50, points_on_wall[i].z - 10);
+			glVertex3f(points_on_wall[i].x + 10, wall_distance + 50, points_on_wall[i].z - 10);
+		}
+		glEnd();
+	}
+}
+
+void shoot_gun() {
+	double t = (-gun_point.y + wall_distance + 50) / main_gun_l.y;
+
+	point point_on_wall = { gun_point.x + t * main_gun_l.x, gun_point.y + t * main_gun_l.y, gun_point.z + t * main_gun_l.z };
+	if (point_on_wall.x < wall_side / 2 && point_on_wall.x > -wall_side / 2
+		&& point_on_wall.z < wall_side / 2 && point_on_wall.z > -wall_side / 2)
+		points_on_wall[points_on_wall_size++] = point_on_wall;
+}
 
 
 void keyboardListener(unsigned char key, int x, int y) {
@@ -345,26 +493,36 @@ void keyboardListener(unsigned char key, int x, int y) {
 	case 'q':
 		if(barrel_angle_y < rotate_limit)
 			barrel_angle_y += rotate_angle;
+		rotate_full_gun_left();
+		modify_gun_point();
 		break;
 	case 'w':
 		if(barrel_angle_y > -rotate_limit)
 			barrel_angle_y -= rotate_angle;
+		rotate_full_gun_right();
+		modify_gun_point();
 		break;
 	case 'e':
 		if (barrel_angle_z > -rotate_limit)
 			barrel_angle_z -= rotate_angle;
+		rotate_full_gun_up();
+		modify_gun_point();
 		break;
 	case 'r':
 		if (barrel_angle_z < rotate_limit)
 			barrel_angle_z += rotate_angle;
+		rotate_full_gun_down();
+		modify_gun_point();
 		break;
 	case 'a':
 		if(main_part_angle_z < rotate_limit)
 			main_part_angle_z += rotate_angle;
+		rotate_main_gun_up();
 		break;
 	case 's':
 		if (main_part_angle_z > -rotate_limit)
 			main_part_angle_z -= rotate_angle;
+		rotate_main_gun_down();
 		break;
 	case 'd':
 		if (main_part_tilt_angle < rotate_limit)
@@ -420,13 +578,14 @@ void specialKeyListener(int key, int x, int y) {
 void mouseListener(int button, int state, int x, int y) {	//x, y is the x-y of the screen (2D)
 	switch (button) {
 	case GLUT_LEFT_BUTTON:
-		if (state == GLUT_DOWN) {		// 2 times?? in ONE click? -- solution is checking DOWN or UP
-			drawaxes = 1 - drawaxes;
-		}
+		if(state == GLUT_DOWN)
+			shoot_gun();
 		break;
 
 	case GLUT_RIGHT_BUTTON:
-		//........
+		if (state == GLUT_DOWN) {		// 2 times?? in ONE click? -- solution is checking DOWN or UP
+			drawaxes = 1 - drawaxes;
+		}
 		break;
 
 	case GLUT_MIDDLE_BUTTON:
@@ -438,7 +597,17 @@ void mouseListener(int button, int state, int x, int y) {	//x, y is the x-y of t
 	}
 }
 
-
+void drawWall() {
+	glColor3f(0.7, 0.7, 0.7);
+	glBegin(GL_QUADS);
+	{
+		glVertex3f(wall_side/2, wall_distance, wall_side / 2);
+		glVertex3f(-wall_side / 2, wall_distance, wall_side / 2);
+		glVertex3f(-wall_side / 2, wall_distance, -wall_side / 2);
+		glVertex3f(wall_side / 2, wall_distance, -wall_side / 2);
+	}
+	glEnd();
+}
 
 void display() {
 
@@ -479,6 +648,8 @@ void display() {
 
 	drawAxes();
 	drawGrid();
+	drawWall();
+	draw_gun_shot();
 
 	glRotatef((barrel_angle_y * 180) / pi, 0, 0, 1);
 	glRotatef((barrel_angle_z * 180) / pi, 1, 0, 0);
@@ -508,7 +679,6 @@ void display() {
 	drawCylinder(6, 90, 80);
 
 	//draw outwards shape thingy
-	//glTranslatef(0, -10, 0);
 	drawOutwardsShape(6, 10, 90, 90, 15);
 
 
@@ -533,6 +703,10 @@ void init() {
 	r = { -0.7071, 0.7071, 0 };
 	l = { -0.7071, -0.7071, 0 };
 
+	gun_point = { 0, -60, 0 };
+	main_gun_l = gun_l = { 0, -1, 0 };
+	main_gun_r = gun_r = { -1, 0, 0 };
+	main_gun_u = gun_u = { 0, 0, 1 };
 
 
 	//clear the screen
@@ -548,7 +722,7 @@ void init() {
 	glLoadIdentity();
 
 	//give PERSPECTIVE parameters
-	gluPerspective(80, 1, 1, 1000.0);
+	gluPerspective(80, 1, 1, 1500.0);
 	//field of view in the Y (vertically)
 	//aspect ratio that determines the field of view in the X direction (horizontally)
 	//near distance
