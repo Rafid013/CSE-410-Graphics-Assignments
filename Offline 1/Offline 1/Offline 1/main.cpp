@@ -6,12 +6,16 @@
 #include <glut.h>
 
 const double pi = (2 * acos(0.0));
-const double rotate_angle = pi / 90;
+const double rotate_angle = pi / 60;
 const double rotate_limit = pi / 4;
+const double translation_speed = 3;
 
 
 double barrel_angle_y = 0;
 double barrel_angle_z = 0;
+double main_part_angle_z = 0;
+double main_part_tilt_angle = 0;
+
 
 double cameraHeight;
 double cameraAngle;
@@ -77,27 +81,27 @@ void drawGrid()
 
 
 void move_camera_forward() {
-	cameraPosition.x += l.x;
-	cameraPosition.y += l.y;
-	cameraPosition.z += l.z;
+	cameraPosition.x += (translation_speed*l.x);
+	cameraPosition.y += (translation_speed*l.y);
+	cameraPosition.z += (translation_speed*l.z);
 }
 
 void move_camera_backward() {
-	cameraPosition.x -= l.x;
-	cameraPosition.y -= l.y;
-	cameraPosition.z -= l.z;
+	cameraPosition.x -= (translation_speed*l.x);
+	cameraPosition.y -= (translation_speed*l.y);
+	cameraPosition.z -= (translation_speed*l.z);
 }
 
 void move_camera_right() {
-	cameraPosition.x += r.x;
-	cameraPosition.y += r.y;
-	cameraPosition.z += r.z;
+	cameraPosition.x += (translation_speed*r.x);
+	cameraPosition.y += (translation_speed*r.y);
+	cameraPosition.z += (translation_speed*r.z);
 }
 
 void move_camera_left() {
-	cameraPosition.x -= r.x;
-	cameraPosition.y -= r.y;
-	cameraPosition.z -= r.z;
+	cameraPosition.x -= (translation_speed*r.x);
+	cameraPosition.y -= (translation_speed*r.y);
+	cameraPosition.z -= (translation_speed*r.z);
 }
 
 void move_camera_up() {
@@ -235,6 +239,48 @@ void drawHalfSphere(double radius, int slices, int stacks)
 	}
 }
 
+void drawOutwardsShape(double lowest_radius, double highest_radius, int segments, int stacks, double len) {
+	struct point points[100][100];
+	double radius = highest_radius;
+	double l = 0;
+	for (int i = 0; i <= stacks; ++i) {
+
+		for (int j = 0; j <= segments; ++j) {
+			points[i][j].x = radius * cos(((double)j / (double)segments) * 2 * pi);
+			points[i][j].y = l;
+			points[i][j].z = radius * sin(((double)j / (double)segments) * 2 * pi);
+		}
+		if (i < stacks / 4)
+			radius -= (radius * 4) / stacks;
+		else
+			radius -= (radius*0.25) / stacks;
+		if (radius <= lowest_radius) radius = lowest_radius;
+		l += (len / stacks);
+	}
+
+	for (int i = 0; i < stacks; i++)
+	{
+		int white = 0;
+		for (int j = 0; j < segments; j++)
+		{
+			glBegin(GL_QUADS); {
+				if (white < 3) {
+					glColor3f(1, 1, 1);
+					++white;
+				}
+				else {
+					glColor3f(0, 0, 0);
+					++white;
+					if (white == 6) white = 0;
+				}
+				glVertex3f(points[i][j].x, points[i][j].y, points[i][j].z);
+				glVertex3f(points[i][j + 1].x, points[i][j + 1].y, points[i][j + 1].z);
+				glVertex3f(points[i + 1][j + 1].x, points[i + 1][j + 1].y, points[i + 1][j + 1].z);
+				glVertex3f(points[i + 1][j].x, points[i + 1][j].y, points[i + 1][j].z);
+			}glEnd();
+		}
+	}
+}
 
 void drawCylinder(double radius, int segments, double length)
 {
@@ -305,12 +351,28 @@ void keyboardListener(unsigned char key, int x, int y) {
 			barrel_angle_y -= rotate_angle;
 		break;
 	case 'e':
+		if (barrel_angle_z > -rotate_limit)
+			barrel_angle_z -= rotate_angle;
+		break;
+	case 'r':
 		if (barrel_angle_z < rotate_limit)
 			barrel_angle_z += rotate_angle;
 		break;
-	case 'r':
-		if (barrel_angle_z > -rotate_limit)
-			barrel_angle_z -= rotate_angle;
+	case 'a':
+		if(main_part_angle_z < rotate_limit)
+			main_part_angle_z += rotate_angle;
+		break;
+	case 's':
+		if (main_part_angle_z > -rotate_limit)
+			main_part_angle_z -= rotate_angle;
+		break;
+	case 'd':
+		if (main_part_tilt_angle < rotate_limit)
+			main_part_tilt_angle += rotate_angle;
+		break;
+	case 'f':
+		if (main_part_tilt_angle > -rotate_limit)
+			main_part_tilt_angle -= rotate_angle;
 		break;
 	default:
 		break;
@@ -434,14 +496,21 @@ void display() {
 	drawHalfSphere(10, 90, 90);
 
 
+	glRotatef((main_part_angle_z * 180) / pi, 1, 0, 0);
+	glRotatef((main_part_tilt_angle * 180) / pi, 0, 1, 0);
 	//draw third half sphere
-	glPushMatrix();
-	{
-		glTranslatef(0, -140, 0);
-		glRotatef(180, 0, 0, 1);
-		drawHalfSphere(2, 90, 90);
-	}
-	glPopMatrix();
+	glRotatef(180, 0, 0, 1);
+	glTranslatef(0, -16, 0);
+	drawHalfSphere(6, 90, 90);
+
+	//draw final cylinder
+	glTranslatef(0, -80, 0);
+	drawCylinder(6, 90, 80);
+
+	//draw outwards shape thingy
+	//glTranslatef(0, -10, 0);
+	drawOutwardsShape(6, 10, 90, 90, 15);
+
 
 	//ADD this line in the end --- if you use double buffer (i.e. GL_DOUBLE)
 	glutSwapBuffers();
