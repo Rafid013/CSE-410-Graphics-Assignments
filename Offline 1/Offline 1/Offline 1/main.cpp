@@ -6,15 +6,18 @@
 #include <glut.h>
 
 const double pi = (2 * acos(0.0));
-const double camera_rotate_angle = pi / 90;
+const double rotate_angle = pi / 90;
+const double rotate_limit = pi / 4;
 
+
+double barrel_angle_y = 0;
+double barrel_angle_z = 0;
 
 double cameraHeight;
 double cameraAngle;
 int drawgrid;
 int drawaxes;
-double angle;
-
+const double axis_len = 1000;
 
 struct point
 {
@@ -35,14 +38,14 @@ void drawAxes()
 	{
 		glColor3f(1.0, 1.0, 1.0);
 		glBegin(GL_LINES); {
-			glVertex3f(100, 0, 0);
-			glVertex3f(-100, 0, 0);
+			glVertex3f(axis_len, 0, 0);
+			glVertex3f(-axis_len, 0, 0);
 
-			glVertex3f(0, -100, 0);
-			glVertex3f(0, 100, 0);
+			glVertex3f(0, -axis_len, 0);
+			glVertex3f(0, axis_len, 0);
 
-			glVertex3f(0, 0, 100);
-			glVertex3f(0, 0, -100);
+			glVertex3f(0, 0, axis_len);
+			glVertex3f(0, 0, -axis_len);
 		}glEnd();
 	}
 }
@@ -111,8 +114,8 @@ void move_camera_down() {
 
 
 void rotate_camera_left() {
-	double cos_theta = cos(camera_rotate_angle);
-	double sin_theta = sin(camera_rotate_angle);
+	double cos_theta = cos(rotate_angle);
+	double sin_theta = sin(rotate_angle);
 
 	l.x = l.x*cos_theta - r.x*sin_theta;
 	l.y = l.y*cos_theta - r.y*sin_theta;
@@ -124,8 +127,8 @@ void rotate_camera_left() {
 }
 
 void rotate_camera_right() {
-	double cos_theta = cos(-camera_rotate_angle);
-	double sin_theta = sin(-camera_rotate_angle);
+	double cos_theta = cos(-rotate_angle);
+	double sin_theta = sin(-rotate_angle);
 
 	l.x = l.x*cos_theta - r.x*sin_theta;
 	l.y = l.y*cos_theta - r.y*sin_theta;
@@ -137,8 +140,8 @@ void rotate_camera_right() {
 }
 
 void rotate_camera_up() {
-	double cos_theta = cos(camera_rotate_angle);
-	double sin_theta = sin(camera_rotate_angle);
+	double cos_theta = cos(rotate_angle);
+	double sin_theta = sin(rotate_angle);
 
 	l.x = l.x*cos_theta + u.x*sin_theta;
 	l.y = l.y*cos_theta + u.y*sin_theta;
@@ -150,8 +153,8 @@ void rotate_camera_up() {
 }
 
 void rotate_camera_down() {
-	double cos_theta = cos(-camera_rotate_angle);
-	double sin_theta = sin(-camera_rotate_angle);
+	double cos_theta = cos(-rotate_angle);
+	double sin_theta = sin(-rotate_angle);
 
 	l.x = l.x*cos_theta + u.x*sin_theta;
 	l.y = l.y*cos_theta + u.y*sin_theta;
@@ -163,8 +166,8 @@ void rotate_camera_down() {
 }
 
 void tilt_camera_clockwise() {
-	double cos_theta = cos(-camera_rotate_angle);
-	double sin_theta = sin(-camera_rotate_angle);
+	double cos_theta = cos(-rotate_angle);
+	double sin_theta = sin(-rotate_angle);
 
 	u.x = u.x*cos_theta - r.x*sin_theta;
 	u.y = u.y*cos_theta - r.y*sin_theta;
@@ -176,8 +179,8 @@ void tilt_camera_clockwise() {
 }
 
 void tilt_camera_counterclockwise() {
-	double cos_theta = cos(camera_rotate_angle);
-	double sin_theta = sin(camera_rotate_angle);
+	double cos_theta = cos(rotate_angle);
+	double sin_theta = sin(rotate_angle);
 
 	u.x = u.x*cos_theta - r.x*sin_theta;
 	u.y = u.y*cos_theta - r.y*sin_theta;
@@ -187,6 +190,90 @@ void tilt_camera_counterclockwise() {
 	r.y = l.z*u.x - l.x*u.z;
 	r.z = l.x*u.y - l.y*u.x;
 }
+
+
+void drawHalfSphere(double radius, int slices, int stacks)
+{
+	struct point points[100][100];
+	int i, j;
+	double h, r;
+	//generate points
+	for (i = 0; i <= stacks; i++)
+	{
+		h = radius * sin(((double)i / (double)stacks)*(pi / 2));
+		r = radius * cos(((double)i / (double)stacks)*(pi / 2));
+		for (j = 0; j <= slices; j++)
+		{
+			points[i][j].x = r * cos(((double)j / (double)slices) * 2 * pi);
+			points[i][j].y = h;
+			points[i][j].z = r * sin(((double)j / (double)slices) * 2 * pi);
+		}
+	}
+
+	//draw quads using generated points
+	for (i = 0; i < stacks; i++)
+	{
+		int white = 0;
+		for (j = 0; j < slices; j++)
+		{
+			glBegin(GL_QUADS); {
+				if (white < 3) {
+					glColor3f(1, 1, 1);
+					++white;
+				}
+				else {
+					glColor3f(0, 0, 0);
+					++white;
+					if (white == 6) white = 0;
+				}
+				glVertex3f(points[i][j].x, points[i][j].y, points[i][j].z);
+				glVertex3f(points[i][j + 1].x, points[i][j + 1].y, points[i][j + 1].z);
+				glVertex3f(points[i + 1][j + 1].x, points[i + 1][j + 1].y, points[i + 1][j + 1].z);
+				glVertex3f(points[i + 1][j].x, points[i + 1][j].y, points[i + 1][j].z);
+			}glEnd();
+		}
+	}
+}
+
+
+void drawCylinder(double radius, int segments, double length)
+{
+	int i;
+	struct point points[100];
+
+	//generate points
+	for (i = 0; i <= segments; i++)
+	{
+		points[i].x = radius * cos(((double)i / (double)segments) * 2 * pi);
+		points[i].z = radius * sin(((double)i / (double)segments) * 2 * pi);
+	}
+
+	
+	//draw segments using generated points
+	int white = 0;
+	for (i = 0; i < segments; i++)
+	{
+		glBegin(GL_QUADS);
+		{
+			if (white < 3) {
+				glColor3f(1, 1, 1);
+				++white;
+			}
+			else {
+				glColor3f(0, 0, 0);
+				++white;
+				if (white == 6) white = 0;
+			}
+			glVertex3f(points[i].x, 0, points[i].z);
+			glVertex3f(points[i + 1].x, 0, points[i + 1].z);
+			glVertex3f(points[i + 1].x, length, points[i + 1].z);
+			glVertex3f(points[i].x, length, points[i].z);
+		}
+		glEnd();
+	}
+}
+
+
 
 void keyboardListener(unsigned char key, int x, int y) {
 	switch (key) {
@@ -208,6 +295,22 @@ void keyboardListener(unsigned char key, int x, int y) {
 		break;
 	case '6':
 		tilt_camera_counterclockwise();
+		break;
+	case 'q':
+		if(barrel_angle_y < rotate_limit)
+			barrel_angle_y += rotate_angle;
+		break;
+	case 'w':
+		if(barrel_angle_y > -rotate_limit)
+			barrel_angle_y -= rotate_angle;
+		break;
+	case 'e':
+		if (barrel_angle_z < rotate_limit)
+			barrel_angle_z += rotate_angle;
+		break;
+	case 'r':
+		if (barrel_angle_z > -rotate_limit)
+			barrel_angle_z -= rotate_angle;
 		break;
 	default:
 		break;
@@ -315,8 +418,30 @@ void display() {
 	drawAxes();
 	drawGrid();
 
+	glRotatef((barrel_angle_y * 180) / pi, 0, 0, 1);
+	glRotatef((barrel_angle_z * 180) / pi, 1, 0, 0);
+
+	//draw first half sphere
+	glTranslatef(0, -10, 0);
+	drawHalfSphere(10, 90, 90);
+
+	//draw cylinder between spheres
+	glTranslatef(0, -40, 0);
+	drawCylinder(10, 90, 40);
+
+	//draw second half sphere
+	glRotatef(180, 0, 0, 1);
+	drawHalfSphere(10, 90, 90);
 
 
+	//draw third half sphere
+	glPushMatrix();
+	{
+		glTranslatef(0, -140, 0);
+		glRotatef(180, 0, 0, 1);
+		drawHalfSphere(2, 90, 90);
+	}
+	glPopMatrix();
 
 	//ADD this line in the end --- if you use double buffer (i.e. GL_DOUBLE)
 	glutSwapBuffers();
@@ -324,7 +449,6 @@ void display() {
 
 
 void animate() {
-	angle += 0.05;
 	//codes for any changes in Models, Camera
 	glutPostRedisplay();
 }
@@ -335,7 +459,6 @@ void init() {
 	drawaxes = 1;
 	cameraHeight = 150.0;
 	cameraAngle = 1.0;
-	angle = 0;
 	cameraPosition = { 100, 100, 0 };
 	u = { 0, 0, 1 };
 	r = { -0.7071, 0.7071, 0 };
