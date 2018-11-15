@@ -18,9 +18,6 @@ double barrel_angle_z = 0;
 double main_part_angle_z = 0;
 double main_part_tilt_angle = 0;
 
-
-double cameraHeight;
-double cameraAngle;
 int drawgrid;
 int drawaxes;
 const double axis_len = 1500;
@@ -629,10 +626,6 @@ void display() {
 	//1. where is the camera (viewer)?
 	//2. where is the camera looking?
 	//3. Which direction is the camera's UP direction?
-
-	//gluLookAt(100,100,100,	0,0,0,	0,0,1);
-	//gluLookAt(200*cos(cameraAngle), 200*sin(cameraAngle), cameraHeight,		0,0,0,		0,0,1);
-	//gluLookAt(0, 0, 200, 0, 0, 0, 0, 1, 0);
 	gluLookAt(cameraPosition.x, cameraPosition.y, cameraPosition.z,
 		cameraPosition.x + l.x, cameraPosition.y + l.y, cameraPosition.z + l.z,
 		u.x, u.y, u.z);
@@ -696,8 +689,6 @@ void init() {
 	//codes for initialization
 	drawgrid = 0;
 	drawaxes = 1;
-	cameraHeight = 150.0;
-	cameraAngle = 1.0;
 	cameraPosition = { 100, 100, 0 };
 	u = { 0, 0, 1 };
 	r = { -0.7071, 0.7071, 0 };
