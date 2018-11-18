@@ -11,7 +11,7 @@
 const double circle_radius = 150;
 const double small_circle_radius = 15;
 const double tri_angle_side = 4;
-const double speed = 0.2;
+const double speed = 0.1;
 const double steer_angle = pi / 90;
 
 struct point
