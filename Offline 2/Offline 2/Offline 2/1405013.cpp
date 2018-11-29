@@ -17,6 +17,19 @@ bool show_vectors = true;
 //state = 5 select point to be updated
 //state = 6 or 2 select new point
 
+const double delta = 1.0 / 500.0;
+const int move_point_n_max = 500;
+
+int current_start_point_idx = 0;
+double current_delta_x, current_delta_sqr_x, current_delta_cube_x;
+double current_delta_y, current_delta_sqr_y, current_delta_cube_y;
+double current_ax, current_bx, current_cx, current_dx;
+double current_ay, current_by, current_cy, current_dy;
+int move_point_n = 0;
+
+double move_x, move_y;
+int selected_point_idx;
+
 struct point2d
 {
     double x, y;
@@ -41,6 +54,88 @@ void drawSquare()
         glVertex3d(-3,  3, 0);
     }
     glEnd();
+}
+
+void drawCircle(double radius, int segments)
+{
+	int i;
+	struct point2d points[100];
+	//generate points
+	for (double r = 0; r <= radius; r += 0.5) {
+		for (i = 0; i <= segments; i++)
+		{
+			points[i].x = r * cos(((double)i / (double)segments) * 2 * pi);
+			points[i].y = r * sin(((double)i / (double)segments) * 2 * pi);
+		}
+		//draw segments using generated points
+		for (i = 0; i < segments; i++)
+		{
+			glBegin(GL_LINES);
+			{
+				glVertex3f(points[i].x, points[i].y, 0);
+				glVertex3f(points[i + 1].x, points[i + 1].y, 0);
+			}
+			glEnd();
+		}
+	}
+}
+
+void updateMovePointVars() {
+	point2d p1, r1, p4, r4;
+	int i = current_start_point_idx;
+	if (i != cpidx - 2) {
+		p1 = cp[i];
+		r1 = { cp[i + 1].x - p1.x, cp[i + 1].y - p1.y };
+		p4 = cp[i + 2];
+		r4 = { cp[i + 3].x - p4.x, cp[i + 3].y - p4.y };
+	}
+	else {
+		p1 = cp[i];
+		r1 = { cp[i + 1].x - p1.x, cp[i + 1].y - p1.y };
+		p4 = cp[0];
+		r4 = { cp[1].x - p4.x, cp[1].y - p4.y };
+	}
+
+	current_ax = 2 * p1.x - 2 * p4.x + r1.x + r4.x;
+	current_bx = -3 * p1.x + 3 * p4.x - 2 * r1.x - r4.x;
+	current_cx = r1.x;
+	current_dx = p1.x;
+
+	current_ay = 2 * p1.y - 2 * p4.y + r1.y + r4.y;
+	current_by = -3 * p1.y + 3 * p4.y - 2 * r1.y - r4.y;
+	current_cy = r1.y;
+	current_dy = p1.y;
+
+	current_delta_x = ((current_ax*delta + current_bx) * delta + current_cx)*delta;
+	current_delta_sqr_x = (6 * current_ax*delta + 2 * current_bx)*delta*delta;
+	current_delta_cube_x = 6 * current_ax*delta*delta*delta;
+
+	current_delta_y = ((current_ay*delta + current_by) * delta + current_cy)*delta;
+	current_delta_sqr_y = (6 * current_ay*delta + 2 * current_by)*delta*delta;
+	current_delta_cube_y = 6 * current_ay*delta*delta*delta;
+
+	move_x = current_dx;
+	move_y = current_dy;
+}
+
+void drawMovingPoint() {
+	glPushMatrix();
+	{
+		glColor3f(0, 1, 1);
+		glTranslatef(move_x, move_y, 0);
+		drawCircle(6, 99);
+	}
+	glPopMatrix();
+}
+
+void drawSelectedPoint() {
+	glPushMatrix();
+	{
+		glColor3f(0, 1, 1);
+		glTranslatef(cp[selected_point_idx].x, cp[selected_point_idx].y, 0);
+		drawCircle(6, 99);
+	}
+	glPopMatrix();
 }
 
 void drawPoints_Vectors() {
@@ -121,9 +216,6 @@ void drawCurve() {
 		double cy = r1.y;
 		double dy = p1.y;
 
-		double x_list[100], y_list[100];
-
-		double delta = 0.01;
 		double x = dx;
 		double delta_x = ((ax*delta + bx) * delta + cx)*delta;
 		double delta_sqr_x = (6 * ax*delta + 2 * bx)*delta*delta;
@@ -134,10 +226,13 @@ void drawCurve() {
 		double delta_sqr_y = (6 * ay*delta + 2 * by)*delta*delta;
 		double delta_cube_y = 6 * ay*delta*delta*delta;
 
+		double *x_list = new double[move_point_n_max + 1];
+		double *y_list = new double[move_point_n_max + 1];
+
 		x_list[0] = x;
 		y_list[0] = y;
 
-		for (int j = 1; j < 100; ++j) {
+		for (int j = 1; j <= move_point_n_max; ++j) {
 			x += delta_x;
 			delta_x += delta_sqr_x;
 			delta_sqr_x += delta_cube_x;
@@ -150,13 +245,15 @@ void drawCurve() {
 			y_list[j] = y;
 		}
 		glColor3d(1, 1, 1);
-		for (int j = 0; j < 100; ++j) {
+		for (int j = 0; j < move_point_n_max; ++j) {
 			glBegin(GL_LINES); {
 				glVertex3d(x_list[j], y_list[j], 0);
 				glVertex3d(x_list[j + 1], y_list[j + 1], 0);
 			}
 			glEnd();
 		}
+		delete x_list;
+		delete y_list;
 	}
 }
 
@@ -169,11 +266,16 @@ void keyboardListener(unsigned char key, int x,int y){
 		case 'a':
 			if (program_state == 2) {
 				program_state = 4;
+				current_start_point_idx = 0;
+				move_point_n = 0;
+				updateMovePointVars();
 			}
+			break;
 		case 'u':
 			if (program_state == 4 || program_state == 2) {
 				program_state = 3;
 			}
+			break;
 		default:
 			break;
 	}
@@ -223,10 +325,28 @@ void mouseListener(int button, int state, int x, int y){	//x, y is the x-y of th
 				}
 
 				else if (program_state == 3) {
+					double x_click = (double)x;
+					double y_click = (double)(600 - y);
+
+					double minDistance = 10000;
+					for (int i = 0; i < cpidx; ++i) {
+						double distance = (cp[i].x - x_click)*(cp[i].x - x_click) + (cp[i].y - y_click)*(cp[i].y - y_click);
+						distance = sqrt(distance);
+						if (distance < minDistance) {
+							minDistance = distance;
+							selected_point_idx = i;
+						}
+					}
+
 					program_state = 5;
 				}
 				
 				else if (program_state == 5) {
+					double x_click = (double)x;
+					double y_click = (double)(600 - y);
+
+					cp[selected_point_idx] = { x_click, y_click };
+
 					program_state = 2;
 				}
 			}
@@ -286,13 +406,17 @@ void display(){
 	****************************/
 	//add objects
 
-
-	if (show_vectors) {
+	if (show_vectors)
 		drawPoints_Vectors();
-	}
-
+	
 	if (program_state != 1)
 		drawCurve();
+
+	if (program_state == 4)
+		drawMovingPoint();
+
+	if (program_state == 5)
+		drawSelectedPoint();
 
 	//ADD this line in the end --- if you use double buffer (i.e. GL_DOUBLE)
 	glutSwapBuffers();
@@ -301,6 +425,24 @@ void display(){
 
 void animate(){
 
+	if (program_state == 4) {
+		++move_point_n;
+
+		move_x += current_delta_x;
+		current_delta_x += current_delta_sqr_x;
+		current_delta_sqr_x += current_delta_cube_x;
+
+		move_y += current_delta_y;
+		current_delta_y += current_delta_sqr_y;
+		current_delta_sqr_y += current_delta_cube_y;
+
+		if (move_point_n > move_point_n_max) {
+			move_point_n = 0;
+			current_start_point_idx += 2;
+			if (current_start_point_idx == cpidx) current_start_point_idx = 0;
+			updateMovePointVars();
+		}
+	}
 
 	//codes for any changes in Models, Camera
 	glutPostRedisplay();
