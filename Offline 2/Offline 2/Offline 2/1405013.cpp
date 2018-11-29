@@ -43,12 +43,73 @@ void drawSquare()
     glEnd();
 }
 
+void drawPoints_Vectors() {
+	for (int i = 0; i < cpidx; ++i)
+	{
+		if (i % 2 == 0)
+			glColor3f(0, 1, 0);
+		else
+			glColor3f(1, 1, 0);
+		glPushMatrix();
+		{
+			glTranslatef(cp[i].x, cp[i].y, 0);
+			drawSquare();
+		}
+		glPopMatrix();
+
+		if (i % 2 == 0 && i != cpidx - 1) {
+			double vx = cp[i + 1].x - cp[i].x;
+			double vy = cp[i + 1].y - cp[i].y;
+
+			double x_temp = cp[i].x + 0.7*vx;
+			double y_temp = cp[i].y + 0.7*vy;
+
+
+			double vx_perp = -vy;
+			double vy_perp = vx;
+
+			vx_perp /= sqrt(vx_perp*vx_perp + vy_perp * vy_perp);
+			vy_perp /= sqrt(vx_perp*vx_perp + vy_perp * vy_perp);
+
+			double point1_x = x_temp + 6*vx_perp;
+			double point1_y = y_temp + 6*vy_perp;
+
+			double point2_x = x_temp - 6*vx_perp;
+			double point2_y = y_temp - 6*vy_perp;
+
+			glColor3f(1, 0, 0);
+			glBegin(GL_TRIANGLES); {
+				glVertex3d(cp[i + 1].x, cp[i + 1].y, 0);
+				glVertex3d(point1_x, point1_y, 0);
+				glVertex3d(point2_x, point2_y, 0);
+			}
+			glEnd();
+
+			glColor3f(1, 1, 1);
+			glBegin(GL_LINES); {
+				glVertex3d(cp[i + 1].x, cp[i + 1].y, 0);
+				glVertex3d(cp[i].x, cp[i].y, 0);
+			}
+			glEnd();
+		}
+	}
+}
+
 void drawCurve() {
 	for (int i = 0; i < cpidx; i += 2) {
-		point2d p1 = cp[i];
-		point2d r1 = { cp[i + 1].x - p1.x, cp[i + 1].y - p1.y };
-		point2d p4 = cp[i + 2];
-		point2d r4 = { cp[i + 3].x - p4.x, cp[i + 3].y - p4.y };
+		point2d p1, r1, p4, r4;
+		if (i != cpidx - 2) {
+			p1 = cp[i];
+			r1 = { cp[i + 1].x - p1.x, cp[i + 1].y - p1.y };
+			p4 = cp[i + 2];
+			r4 = { cp[i + 3].x - p4.x, cp[i + 3].y - p4.y };
+		}
+		else {
+			p1 = cp[i];
+			r1 = { cp[i + 1].x - p1.x, cp[i + 1].y - p1.y };
+			p4 = cp[0];
+			r4 = { cp[1].x - p4.x, cp[1].y - p4.y };
+		}
 
 		double ax = 2 * p1.x - 2 * p4.x + r1.x + r4.x;
 		double bx = -3 * p1.x + 3 * p4.x - 2 * r1.x - r4.x;
@@ -60,17 +121,39 @@ void drawCurve() {
 		double cy = r1.y;
 		double dy = p1.y;
 
-		double x[100], y[100];
+		double x_list[100], y_list[100];
 
-		for (double t = 0, j = 0; t <= 1; t += 0.01, ++j) {
-			x[(int)j] = ax * t*t*t + bx * t*t + cx * t + dx;
-			y[(int)j] = ay * t*t*t + by * t*t + cy * t + dy;
+		double delta = 0.01;
+		double x = dx;
+		double delta_x = ((ax*delta + bx) * delta + cx)*delta;
+		double delta_sqr_x = (6 * ax*delta + 2 * bx)*delta*delta;
+		double delta_cube_x = 6 * ax*delta*delta*delta;
+
+		double y = dy;
+		double delta_y = ((ay*delta + by) * delta + cy)*delta;
+		double delta_sqr_y = (6 * ay*delta + 2 * by)*delta*delta;
+		double delta_cube_y = 6 * ay*delta*delta*delta;
+
+		x_list[0] = x;
+		y_list[0] = y;
+
+		for (int j = 1; j < 100; ++j) {
+			x += delta_x;
+			delta_x += delta_sqr_x;
+			delta_sqr_x += delta_cube_x;
+
+			y += delta_y;
+			delta_y += delta_sqr_y;
+			delta_sqr_y += delta_cube_y;
+
+			x_list[j] = x;
+			y_list[j] = y;
 		}
 		glColor3d(1, 1, 1);
-		for (int j = 0; j < 99; ++j) {
+		for (int j = 0; j < 100; ++j) {
 			glBegin(GL_LINES); {
-				glVertex3d(x[j], y[j], 0);
-				glVertex3d(x[j + 1], y[j + 1], 0);
+				glVertex3d(x_list[j], y_list[j], 0);
+				glVertex3d(x_list[j + 1], y_list[j + 1], 0);
 			}
 			glEnd();
 		}
@@ -85,7 +168,7 @@ void keyboardListener(unsigned char key, int x,int y){
 			break;
 		case 'a':
 			if (program_state == 2) {
-				program_state == 4;
+				program_state = 4;
 			}
 		case 'u':
 			if (program_state == 4 || program_state == 2) {
@@ -204,18 +287,9 @@ void display(){
 	//add objects
 
 
-	int i;
-
-    for (i = 0; i < cpidx; i++)
-    {
-        glColor3f(1, 1, 0);
-        glPushMatrix();
-        {
-            glTranslatef(cp[i].x, cp[i].y, 0);
-            drawSquare();
-        }
-        glPopMatrix();
-    }
+	if (show_vectors) {
+		drawPoints_Vectors();
+	}
 
 	if (program_state != 1)
 		drawCurve();
