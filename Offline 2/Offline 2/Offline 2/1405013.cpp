@@ -156,31 +156,43 @@ void drawPoints_Vectors() {
 			double vx = cp[i + 1].x - cp[i].x;
 			double vy = cp[i + 1].y - cp[i].y;
 
-			double x_temp = cp[i].x + 0.7*vx;
-			double y_temp = cp[i].y + 0.7*vy;
+			double x_temp = cp[i].x + 0.8*vx;
+			double y_temp = cp[i].y + 0.8*vy;
 
+			double triangle_height = sqrt((cp[i + 1].x - x_temp)*(cp[i + 1].x - x_temp)
+				+ (cp[i + 1].y - y_temp)*(cp[i + 1].y - y_temp));
 
-			double vx_perp = -vy;
+			/*double vx_perp = -vy;
 			double vy_perp = vx;
 
 			vx_perp /= sqrt(vx_perp*vx_perp + vy_perp * vy_perp);
 			vy_perp /= sqrt(vx_perp*vx_perp + vy_perp * vy_perp);
 
-			double point1_x = x_temp + 6*vx_perp;
-			double point1_y = y_temp + 6*vy_perp;
+			double point1_x = x_temp + 4*vx_perp;
+			double point1_y = y_temp + 4*vy_perp;
 
-			double point2_x = x_temp - 6*vx_perp;
-			double point2_y = y_temp - 6*vy_perp;
+			double point2_x = x_temp - 4*vx_perp;
+			double point2_y = y_temp - 4*vy_perp;*/
 
-			glColor3f(1, 0, 0);
-			glBegin(GL_TRIANGLES); {
-				glVertex3d(cp[i + 1].x, cp[i + 1].y, 0);
-				glVertex3d(point1_x, point1_y, 0);
-				glVertex3d(point2_x, point2_y, 0);
-			}
-			glEnd();
+			double rotate_angle = acos(vy / sqrt(vx * vx + vy * vy));
+			rotate_angle *= (180 / pi);
+
+			if (vx >= 0) rotate_angle = -rotate_angle;
+
+			glPushMatrix(); {
+				glColor3f(1, 0, 0);
+				glTranslatef(x_temp, y_temp, 0);
+				glRotatef(rotate_angle, 0, 0, 1);
+				glBegin(GL_TRIANGLES); {
+					glVertex3d(0, triangle_height, 0);
+					glVertex3d(6, 0, 0);
+					glVertex3d(-6, 0, 0);
+				}
+				glEnd();
+			} glPopMatrix();
 
 			glColor3f(1, 1, 1);
+			glLineWidth(1);
 			glBegin(GL_LINES); {
 				glVertex3d(cp[i + 1].x, cp[i + 1].y, 0);
 				glVertex3d(cp[i].x, cp[i].y, 0);
@@ -246,6 +258,7 @@ void drawCurve() {
 		}
 		glColor3d(1, 1, 1);
 		for (int j = 0; j < move_point_n_max; ++j) {
+			glLineWidth(2);
 			glBegin(GL_LINES); {
 				glVertex3d(x_list[j], y_list[j], 0);
 				glVertex3d(x_list[j + 1], y_list[j + 1], 0);
@@ -270,6 +283,7 @@ void keyboardListener(unsigned char key, int x,int y){
 				move_point_n = 0;
 				updateMovePointVars();
 			}
+			else if (program_state == 4) program_state = 2;
 			break;
 		case 'u':
 			if (program_state == 4 || program_state == 2) {
