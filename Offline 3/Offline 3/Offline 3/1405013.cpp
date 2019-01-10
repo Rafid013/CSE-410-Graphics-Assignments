@@ -393,6 +393,67 @@ void stage2()
 	stage2 << std::setprecision(7);
 
 	// collect input from stage1 and process, write output to stage2
+	Vector look(look_x, look_y, look_z);
+	Vector eye(eye_x, eye_y, eye_z);
+	Vector up(up_x, up_y, up_z);
+
+	Vector l = look - eye;
+	l.normalize();
+	Vector r = Vector::cross(l, up);
+	r.normalize();
+	Vector u = Vector::cross(r, l);
+	cout << "Look Vector" << endl;
+	l.print();
+	cout << "Right Vector" << endl;
+	r.print();
+	cout << "Up Vector" << endl;
+	u.print();
+
+	matrix T = matrix::make_identity(4);
+	T.values[0][3] = -eye_x;
+	T.values[1][3] = -eye_y;
+	T.values[2][3] = -eye_z;
+
+	cout << "matrix T" << endl;
+	T.print();
+
+	matrix R = matrix::make_identity(4);
+	R.values[0][0] = r.x;
+	R.values[0][1] = r.y;
+	R.values[0][2] = r.z;
+
+	R.values[1][0] = u.x;
+	R.values[1][1] = u.y;
+	R.values[1][2] = u.z;
+
+	R.values[2][0] = -l.x;
+	R.values[2][1] = -l.y;
+	R.values[2][2] = -l.z;
+
+	cout << "matrix R" << endl;
+	R.print();
+
+	matrix V = R * T;
+	cout << "matrix V" << endl;
+	V.print();
+
+	int cnt = 0;
+	while (true) {
+		if (cnt == 3) {
+			cnt = 0;
+			stage2 << endl;
+		}
+		double x, y, z;
+		stage1 >> x >> y >> z;
+		++cnt;
+
+		if (stage1.eof()) break;
+
+		homogeneous_point p(x, y, z);
+		homogeneous_point t = V * p;
+
+		stage2 << t.x << " " << t.y << " " << t.z << endl;
+	}
 
 	stage1.close();
 	stage2.close();
@@ -430,6 +491,7 @@ void stage1()
 	stack<matrix> S;
 	stack<stack<matrix>> stack_of_S;
 	matrix identity_mat = matrix::make_identity(4);
+	identity_mat.print();
 	S.push(identity_mat);
 
 	while (true) {
