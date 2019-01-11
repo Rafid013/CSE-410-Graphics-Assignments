@@ -314,7 +314,7 @@ public:
 
 class triangle {
 public:
-	homogeneous_point point1, point2, point3;
+	homogeneous_point points[3];
 	color clr;
 
 	triangle() {
@@ -329,6 +329,7 @@ color backgroud;
 int screen_x, screen_y;
 
 vector<triangle> tri_vect;
+vector<triangle> clipped_triangles;
 
 
 void scan_convert() {
@@ -366,6 +367,64 @@ void scan_convert() {
 }
 
 
+vector<homogeneous_point> clip_triangle(string edge, vector<homogeneous_point> points) {
+	int num_of_points = points.size();
+	vector<homogeneous_point> output_list;
+	if (edge == "near") {
+		homogeneous_point S = points[num_of_points - 1];
+		homogeneous_point P = points[0];
+		for (int i = 0; i < num_of_points; ++i) {
+			if (S.z <= -near && P.z <= -near)
+				output_list.push_back(P);
+			else if (S.z <= -near && P.z > -near) {
+				double int_x = ((S.z - P.z) / (S.x - P.x))*(-near - P.z) + P.x;
+				double int_y = ((S.y - P.y) / (S.x - P.x))*(int_x - P.x) + P.y;
+				double int_z = -near;
+				homogeneous_point intersection_point(int_x, int_y, int_z);
+				output_list.push_back(intersection_point);
+			}
+			else if (S.z > -near && P.z <= -near) {
+				double int_x = ((S.z - P.z) / (S.x - P.x))*(-near - P.z) + P.x;
+				double int_y = ((S.y - P.y) / (S.x - P.x))*(int_x - P.x) + P.y;
+				double int_z = -near;
+				homogeneous_point intersection_point(int_x, int_y, int_z);
+				output_list.push_back(intersection_point);
+				output_list.push_back(P);
+			}
+			if (i == num_of_points - 1) break;
+			S = points[i];
+			P = points[i + 1];
+		}
+	}
+	else {
+		homogeneous_point S = points[num_of_points - 1];
+		homogeneous_point P = points[0];
+		for (int i = 0; i < num_of_points; ++i) {
+			if (S.z >= -far && P.z >= -far)
+				output_list.push_back(P);
+			else if (S.z >= -far && P.z < -far) {
+				double int_x = ((S.z - P.z) / (S.x - P.x))*(-far - P.z) + P.x;
+				double int_y = ((S.y - P.y) / (S.x - P.x))*(int_x - P.x) + P.y;
+				double int_z = -far;
+				homogeneous_point intersection_point(int_x, int_y, int_z);
+				output_list.push_back(intersection_point);
+			}
+			else if (S.z < -far && P.z >= -far) {
+				double int_x = ((S.z - P.z) / (S.x - P.x))*(-far - P.z) + P.x;
+				double int_y = ((S.y - P.y) / (S.x - P.x))*(int_x - P.x) + P.y;
+				double int_z = -far;
+				homogeneous_point intersection_point(int_x, int_y, int_z);
+				output_list.push_back(intersection_point);
+				output_list.push_back(P);
+			}
+			if (i == num_of_points - 1) break;
+			S = points[i];
+			P = points[i + 1];
+		}
+	}
+	return output_list;
+}
+
 void stage3()
 {
 	if (near == far) return;
@@ -377,6 +436,114 @@ void stage3()
 	stage3 << std::setprecision(7);
 
 	// process input from stage2 and write to stage3
+	fov_x = fov_y * aspectRatio;
+	double t = near * tan((fov_y / 2)*(pi / 180));
+	double r = near * tan((fov_x / 2)*(pi / 180));
+
+	matrix P(4);
+	for (int i = 0; i < 4; ++i) {
+		for (int j = 0; j < 4; ++j) {
+			if (i == 0 && j == 0)
+				P.values[i][j] = near / r;
+			else if (i == 1 && j == 1)
+				P.values[i][j] = near / t;
+			else if (i == 2 && j == 2)
+				P.values[i][j] = (far + near) / (near - far);
+			else if (i == 3 && j == 2)
+				P.values[i][j] = -1;
+			else if (i == 2 && j == 3)
+				P.values[i][j] = (2 * far*near) / (near - far);
+			else
+				P.values[i][j] = 0;
+		}
+	}
+	cout << "matrix P" << endl;
+	P.print();
+
+	int cnt = 0;
+	int k = 0;
+	vector<homogeneous_point> points_to_clip;
+	color current_color;
+	while (true) {
+		if (cnt == 3) {
+			current_color = tri_vect[k].clr;
+			++k;
+			vector<homogeneous_point> clipped_near = clip_triangle("near", points_to_clip);
+			vector<homogeneous_point> clipped_all = clip_triangle("far", clipped_near);
+			points_to_clip.clear();
+			if (clipped_all.size() == 4) {
+				triangle tri[2];
+				tri[0].clr = tri[1].clr = current_color;
+				tri[0].points[0] = clipped_all[0];
+				tri[0].points[1] = clipped_all[1];
+				tri[0].points[2] = clipped_all[3];
+
+				tri[1].points[0] = clipped_all[1];
+				tri[1].points[1] = clipped_all[2];
+				tri[1].points[2] = clipped_all[3];
+
+				for (int i = 0; i < 2; ++i) {
+					for (int j = 0; j < 3; ++j) {
+						homogeneous_point tmp = P * tri[i].points[j];
+						tmp = homogeneous_point(tmp.x, tmp.y, tmp.z, tmp.w);
+						stage3 << tmp.x << " " << tmp.y << " " << tmp.z << endl;
+						tri[i].points[j] = tmp;
+					}
+					clipped_triangles.push_back(tri[i]);
+					stage3 << endl;
+				}
+
+			}
+			else if (clipped_all.size() == 5) {
+				triangle tri[3];
+				tri[0].clr = tri[1].clr = tri[2].clr = current_color;
+				tri[0].points[0] = clipped_all[0];
+				tri[0].points[1] = clipped_all[1];
+				tri[0].points[2] = clipped_all[4];
+
+				tri[1].points[0] = clipped_all[1];
+				tri[1].points[1] = clipped_all[3];
+				tri[1].points[2] = clipped_all[4];
+
+				tri[2].points[0] = clipped_all[1];
+				tri[2].points[1] = clipped_all[2];
+				tri[2].points[2] = clipped_all[3];
+
+				for (int i = 0; i < 3; ++i) {
+					for (int j = 0; j < 3; ++j) {
+						homogeneous_point tmp = P * tri[i].points[j];
+						tmp = homogeneous_point(tmp.x, tmp.y, tmp.z, tmp.w);
+						stage3 << tmp.x << " " << tmp.y << " " << tmp.z << endl;
+						tri[i].points[j] = tmp;
+					}
+					clipped_triangles.push_back(tri[i]);
+					stage3 << endl;
+				}
+			}
+			else if (clipped_all.size() == 3) {
+				triangle tri;
+				tri.clr = current_color;
+				for (int j = 0; j < 3; ++j) {
+					homogeneous_point tmp = P * clipped_all[j];
+					tmp = homogeneous_point(tmp.x, tmp.y, tmp.z, tmp.w);
+					stage3 << tmp.x << " " << tmp.y << " " << tmp.z << endl;
+					tri.points[j] = tmp;
+				}
+				clipped_triangles.push_back(tri);
+				stage3 << endl;
+			}
+			cnt = 0;
+		}
+		double x, y, z;
+		stage2 >> x >> y >> z;
+
+		if (stage2.eof()) break;
+
+		++cnt;
+
+		homogeneous_point p(x, y, z);
+		points_to_clip.push_back(p);
+	}
 
 	stage3.close();
 	stage2.close();
@@ -438,21 +605,27 @@ void stage2()
 	V.print();
 
 	int cnt = 0;
+	int i = 0;
 	while (true) {
 		if (cnt == 3) {
 			cnt = 0;
+			++i;
 			stage2 << endl;
 		}
 		double x, y, z;
 		stage1 >> x >> y >> z;
-		++cnt;
 
 		if (stage1.eof()) break;
 
 		homogeneous_point p(x, y, z);
 		homogeneous_point t = V * p;
+		t = homogeneous_point(t.x, t.y, t.z, t.w);
+
+		tri_vect[i].points[cnt] = t;
 
 		stage2 << t.x << " " << t.y << " " << t.z << endl;
+
+		++cnt;
 	}
 
 	stage1.close();
@@ -505,21 +678,22 @@ void stage1()
 				homogeneous_point temp(x[i], y[i], z[i]);
 				p[i] = temp;
 			}
-			
-			color clr;
-			scene >> clr.r >> clr.g >> clr.b;
 
 			triangle tri;
-			tri.point1 = p[0];
-			tri.point2 = p[1];
-			tri.point3 = p[2];
-			tri.clr = clr;
+			color clr;
+			scene >> clr.r >> clr.g >> clr.b;
 
 			matrix transform_matrix = S.top();
 			for (int i = 0; i < 3; ++i) {
 				homogeneous_point resultant_point = transform_matrix * p[i];
+				resultant_point = homogeneous_point(resultant_point.x, resultant_point.y,
+					resultant_point.z, resultant_point.w);
 				stage1 << resultant_point.x << " " << resultant_point.y << " " << resultant_point.z << endl;
+
+				tri.points[i] = resultant_point;
 			}
+			tri.clr = clr;
+			tri_vect.push_back(tri);
 			stage1 << endl;
 		}
 		else if (command == "translate") {
