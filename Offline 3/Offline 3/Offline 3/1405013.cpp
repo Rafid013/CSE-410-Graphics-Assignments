@@ -370,38 +370,51 @@ void scan_convert() {
 		homogeneous_point p3 = tri.points[2];
 		color clr = tri.clr;
 
-		int i_start = floor((screen_y / 2.0)*(2 - (1.0 / screen_y) - (p1.y + 1)));
-		int i_end = floor((screen_y / 2.0)*(2 - (1.0 / screen_y) - (p3.y + 1)));
+		int i_start = screen_y - floor((p1.y + 1)*screen_y / 2);
+		int i_end = screen_y - floor((p3.y + 1)*screen_y / 2);
 
-		for (int i = i_start; i <= i_end && i < screen_y; ++i) {
+		if (i_start < 0) i_start = 0;
+
+		for (int i = i_start; i < i_end && i < screen_y; ++i) {
 			double scan_line_y = 1 - (1.0 / screen_y) - (2.0 / screen_y)*i;
-			double xl, zl, xr, zr;
-			if (p1.y == p2.y || scan_line_y > p2.y) {
-				xl = (scan_line_y - p1.y) / (p1.y - p3.y)*(p1.x - p3.x) + p1.x;
-				zl = (scan_line_y - p1.y) / (p1.y - p3.y)*(p1.z - p3.z) + p1.z;
+			double xl, zl, xr, zr, x1, x2, z1, z2;
+			if (p1.y == p2.y || scan_line_y < p2.y) {
+				x1 = (scan_line_y - p1.y) / (p1.y - p3.y)*(p1.x - p3.x) + p1.x;
+				z1 = (scan_line_y - p1.y) / (p1.y - p3.y)*(p1.z - p3.z) + p1.z;
 
-				xr = (scan_line_y - p2.y) / (p2.y - p3.y)*(p2.x - p3.x) + p2.x;
-				zr = (scan_line_y - p2.y) / (p2.y - p3.y)*(p2.z - p3.z) + p2.z;
+				x2 = (scan_line_y - p2.y) / (p2.y - p3.y)*(p2.x - p3.x) + p2.x;
+				z2 = (scan_line_y - p2.y) / (p2.y - p3.y)*(p2.z - p3.z) + p2.z;
 			}
 
-			if (p2.y == p3.y || scan_line_y <= p2.y) {
-				xl = (scan_line_y - p1.y) / (p1.y - p2.y)*(p1.x - p2.x) + p1.x;
-				zl = (scan_line_y - p1.y) / (p1.y - p2.y)*(p1.z - p2.z) + p1.z;
+			else if (p2.y == p3.y || scan_line_y >= p2.y) {
+				x1 = (scan_line_y - p1.y) / (p1.y - p2.y)*(p1.x - p2.x) + p1.x;
+				z1 = (scan_line_y - p1.y) / (p1.y - p2.y)*(p1.z - p2.z) + p1.z;
 
-				xr = (scan_line_y - p1.y) / (p1.y - p3.y)*(p1.x - p3.x) + p1.x;
-				zr = (scan_line_y - p1.y) / (p1.y - p3.y)*(p1.z - p3.z) + p1.z;
+				x2 = (scan_line_y - p1.y) / (p1.y - p3.y)*(p1.x - p3.x) + p1.x;
+				z2 = (scan_line_y - p1.y) / (p1.y - p3.y)*(p1.z - p3.z) + p1.z;
 			}
 
-			int j_start = (screen_x / 2.0)*(xl + 1 - (1.0 / screen_x));
-			int j_end = (screen_x / 2.0)*(xr + 1 - (1.0 / screen_x));
+			if (x1 <= x2) {
+				xl = x1, zl = z1;
+				xr = x2, zr = z2;
+			}
+			else {
+				xl = x2, zl = z2;
+				xr = x1, zr = z1;
+			}
 
-			for (int j = j_start; j <= j_end && j < screen_x; ++j) {
+			int j_start = floor((xl + 1)*screen_x / 2);
+			int j_end = floor((xr + 1)*screen_x / 2);
+
+			if (j_start < 0) j_start = 0;
+
+			for (int j = j_start; j < j_end && j < screen_x; ++j) {
 				double xp = (1.0 / screen_x) + (2.0 / screen_x)*j - 1;
 				double zp = zr - (zr - zl)*((xr - xp) / (xr - xl));
 
-				if (zp < zs[i][j]) {
-					zs[i][j] = zp;
-					pixels[i][j] = clr;
+				if (zp < zs[j][i]) {
+					zs[j][i] = zp;
+					pixels[j][i] = clr;
 				}
 			}
 		}
