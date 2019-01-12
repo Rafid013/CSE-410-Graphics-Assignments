@@ -351,6 +351,61 @@ void scan_convert() {
 
 	// perform scan conversion, populate the 2D array pixels
 	// the array zs is the z-buffer.
+	int num_of_tri = clipped_triangles.size();
+	for (int i = 0; i < num_of_tri; ++i) {
+		triangle tri = clipped_triangles[i];
+		
+		for (int p1 = 0; p1 < 3; ++p1) {
+			for (int p2 = p1 + 1; p2 < 3; ++p2) {
+				if (tri.points[p1].y < tri.points[p2].y) {
+					homogeneous_point temp = tri.points[p2];
+					tri.points[p2] = tri.points[p1];
+					tri.points[p1] = temp;
+				}
+			}
+		}
+
+		homogeneous_point p1 = tri.points[0];
+		homogeneous_point p2 = tri.points[1];
+		homogeneous_point p3 = tri.points[2];
+		color clr = tri.clr;
+
+		int i_start = floor((screen_y / 2.0)*(2 - (1.0 / screen_y) - (p1.y + 1)));
+		int i_end = floor((screen_y / 2.0)*(2 - (1.0 / screen_y) - (p3.y + 1)));
+
+		for (int i = i_start; i <= i_end && i < screen_y; ++i) {
+			double scan_line_y = 1 - (1.0 / screen_y) - (2.0 / screen_y)*i;
+			double xl, zl, xr, zr;
+			if (p1.y == p2.y || scan_line_y > p2.y) {
+				xl = (scan_line_y - p1.y) / (p1.y - p3.y)*(p1.x - p3.x) + p1.x;
+				zl = (scan_line_y - p1.y) / (p1.y - p3.y)*(p1.z - p3.z) + p1.z;
+
+				xr = (scan_line_y - p2.y) / (p2.y - p3.y)*(p2.x - p3.x) + p2.x;
+				zr = (scan_line_y - p2.y) / (p2.y - p3.y)*(p2.z - p3.z) + p2.z;
+			}
+
+			if (p2.y == p3.y || scan_line_y <= p2.y) {
+				xl = (scan_line_y - p1.y) / (p1.y - p2.y)*(p1.x - p2.x) + p1.x;
+				zl = (scan_line_y - p1.y) / (p1.y - p2.y)*(p1.z - p2.z) + p1.z;
+
+				xr = (scan_line_y - p1.y) / (p1.y - p3.y)*(p1.x - p3.x) + p1.x;
+				zr = (scan_line_y - p1.y) / (p1.y - p3.y)*(p1.z - p3.z) + p1.z;
+			}
+
+			int j_start = (screen_x / 2.0)*(xl + 1 - (1.0 / screen_x));
+			int j_end = (screen_x / 2.0)*(xr + 1 - (1.0 / screen_x));
+
+			for (int j = j_start; j <= j_end && j < screen_x; ++j) {
+				double xp = (1.0 / screen_x) + (2.0 / screen_x)*j - 1;
+				double zp = zr - (zr - zl)*((xr - xp) / (xr - xl));
+
+				if (zp < zs[i][j]) {
+					zs[i][j] = zp;
+					pixels[i][j] = clr;
+				}
+			}
+		}
+	}
 
 
 	// the following code generates a bmp image. do not change this.
