@@ -386,7 +386,7 @@ void scan_convert() {
 				z2 = (scan_line_y - p2.y) / (p2.y - p3.y)*(p2.z - p3.z) + p2.z;
 			}
 
-			else if (p2.y == p3.y || scan_line_y >= p2.y) {
+			else if (p2.y == p3.y || scan_line_y > p2.y) {
 				x1 = (scan_line_y - p1.y) / (p1.y - p2.y)*(p1.x - p2.x) + p1.x;
 				z1 = (scan_line_y - p1.y) / (p1.y - p2.y)*(p1.z - p2.z) + p1.z;
 
@@ -431,7 +431,10 @@ void scan_convert() {
 	image.save_image("out.bmp");
 
 	// free the dynamically allocated memory
-
+	for (int i = 0; i < screen_x; ++i) {
+		free(zs[i]);
+		free(pixels[i]);
+	}
 }
 
 
@@ -445,15 +448,15 @@ vector<homogeneous_point> clip_triangle(string edge, vector<homogeneous_point> p
 			if (S.z <= -near && P.z <= -near)
 				output_list.push_back(P);
 			else if (S.z <= -near && P.z > -near) {
-				double int_x = ((S.z - P.z) / (S.x - P.x))*(-near - P.z) + P.x;
-				double int_y = ((S.y - P.y) / (S.x - P.x))*(int_x - P.x) + P.y;
+				double int_x = ((-near - S.z) / (S.z - P.z))*(S.x - P.x) + S.x;
+				double int_y = ((-near - S.z) / (S.z - P.z))*(S.y - P.y) + S.y;
 				double int_z = -near;
 				homogeneous_point intersection_point(int_x, int_y, int_z);
 				output_list.push_back(intersection_point);
 			}
 			else if (S.z > -near && P.z <= -near) {
-				double int_x = ((S.z - P.z) / (S.x - P.x))*(-near - P.z) + P.x;
-				double int_y = ((S.y - P.y) / (S.x - P.x))*(int_x - P.x) + P.y;
+				double int_x = ((-near - S.z) / (S.z - P.z))*(S.x - P.x) + S.x;
+				double int_y = ((-near - S.z) / (S.z - P.z))*(S.y - P.y) + S.y;
 				double int_z = -near;
 				homogeneous_point intersection_point(int_x, int_y, int_z);
 				output_list.push_back(intersection_point);
@@ -471,15 +474,15 @@ vector<homogeneous_point> clip_triangle(string edge, vector<homogeneous_point> p
 			if (S.z >= -far && P.z >= -far)
 				output_list.push_back(P);
 			else if (S.z >= -far && P.z < -far) {
-				double int_x = ((S.z - P.z) / (S.x - P.x))*(-far - P.z) + P.x;
-				double int_y = ((S.y - P.y) / (S.x - P.x))*(int_x - P.x) + P.y;
+				double int_x = ((-far - S.z) / (S.z - P.z))*(S.x - P.x) + S.x;
+				double int_y = ((-far - S.z) / (S.z - P.z))*(S.y - P.y) + S.y;
 				double int_z = -far;
 				homogeneous_point intersection_point(int_x, int_y, int_z);
 				output_list.push_back(intersection_point);
 			}
 			else if (S.z < -far && P.z >= -far) {
-				double int_x = ((S.z - P.z) / (S.x - P.x))*(-far - P.z) + P.x;
-				double int_y = ((S.y - P.y) / (S.x - P.x))*(int_x - P.x) + P.y;
+				double int_x = ((-far - S.z) / (S.z - P.z))*(S.x - P.x) + S.x;
+				double int_y = ((-far - S.z) / (S.z - P.z))*(S.y - P.y) + S.y;
 				double int_z = -far;
 				homogeneous_point intersection_point(int_x, int_y, int_z);
 				output_list.push_back(intersection_point);
@@ -845,6 +848,6 @@ int main()
 	stage2();
 	stage3();
 	scan_convert();
-	getchar();
+	//getchar();
 	return 0;
 }
