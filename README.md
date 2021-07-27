@@ -1,2 +1,2 @@
-# CSE-410-Graphics-Assignments
-Assignments in CSE 410 Graphics Sessional
+# CSE 410: Computer Graphics Assignments
+Assignments in CSE 410: Computer Graphics Sessional
